@@ -82,19 +82,18 @@ module MktoRest
       #   }
       # maximium length of leads = 300
 
-      post do
-        data = {
-          action: action,
-          input: leads
-        }
-        data[:partitionName] = partition if partition
-        data
-      end
+      data = {
+        action: action,
+        input: leads
+      }
+      data[:partitionName] = partition if partition
+
+      post(data)
     end
 
     %i(email id).each do |sym|
       define_method("update_lead_by_#{sym}".to_sym) do |lookup_value, values|
-        post do
+        post(
           {
             action: 'updateOnly',
             lookupField: sym.to_s,
@@ -102,16 +101,15 @@ module MktoRest
               { sym => lookup_value }.merge(values)
             ]
           }
-        end
+        )
       end
     end
 
-    def post
+    def post(data, url = "https://#{@host}/rest/v1/leads.json")
       authenticate unless authenticated?
       fail 'client not authenticated.' unless authenticated?
       headers = { 'Authorization' => "Bearer #{@token}" }
-      data = yield.to_json
-      body = MktoRest::HttpUtils.post("https://#{@host}/rest/v1/leads.json", headers, data, @options)
+      body = MktoRest::HttpUtils.post(url, headers, data.to_json, @options)
       data = JSON.parse(body, symbolize_names: true)
       fail data[:errors].to_s if data[:success] == false
       data
